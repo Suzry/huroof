@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 // ─── Google Font ──────────────────────────────────────────────────────────────
 if (!document.querySelector('link[data-tajawal]')) {
@@ -25,6 +25,14 @@ if (!document.querySelector('style[data-huroof]')) {
     @keyframes winPulse {
       0%,100% { transform: scale(1);    filter: brightness(1);   }
       50%     { transform: scale(1.08); filter: brightness(1.35); }
+    }
+    @keyframes timerFlash {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%     { opacity: 0.4; transform: scale(1.08); }
+    }
+    @keyframes selectedPulse {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0.45; }
     }
     * { -webkit-tap-highlight-color: transparent; }
   `
@@ -324,6 +332,92 @@ function WinOverlay({ winner, moveCount, onReset }: { winner: Team; moveCount: n
   )
 }
 
+// ─── CountdownTimer ───────────────────────────────────────────────────────────
+
+function CountdownTimer() {
+  const TOTAL = 10
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const start = () => {
+    // If already running or done, reset and restart
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setTimeLeft(TOTAL)
+    intervalRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t === null || t <= 1) {
+          clearInterval(intervalRef.current!)
+          intervalRef.current = null
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+  }
+
+  const reset = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = null
+    setTimeLeft(null)
+  }
+
+  // Clean up on unmount
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current) }, [])
+
+  const isRunning = timeLeft !== null && timeLeft > 0
+  const isDone    = timeLeft === 0
+
+  // Color shifts: green → yellow → red as time runs out
+  const color = isDone ? '#ef4444'
+    : timeLeft !== null && timeLeft <= 3 ? '#f97316'
+    : timeLeft !== null && timeLeft <= 6 ? '#facc15'
+    : '#4ade80'
+
+  return (
+    <div className="flex items-center gap-3" style={{ fontFamily: 'Tajawal, serif' }}>
+      {/* Main timer display + start button */}
+      <button
+        onClick={isRunning ? reset : start}
+        className="flex items-center gap-3 rounded-2xl px-7 py-3.5 transition-all active:scale-95"
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: `1.5px solid ${timeLeft !== null ? color : 'rgba(255,255,255,0.15)'}`,
+          boxShadow: timeLeft !== null ? `0 0 14px ${color}44` : 'none',
+          animation: isDone ? 'timerFlash 0.5s ease-in-out infinite' : 'none',
+        }}
+      >
+        {/* Clock icon */}
+        <span style={{ fontSize: 22, lineHeight: 1, color: '#ffffff' }}>⏱</span>
+
+        {/* Number */}
+        <span
+          className="font-black min-w-[28px] text-center"
+          style={{
+            fontSize: timeLeft !== null ? 32 : 22,
+            color: timeLeft !== null ? color : '#ffffff',
+            textShadow: timeLeft !== null ? `0 0 16px ${color}` : 'none',
+            transition: 'color 0.4s, font-size 0.2s',
+            lineHeight: 1,
+          }}
+        >
+          {isDone ? 'مفتوح للكل' : timeLeft !== null ? timeLeft : '١٠'}
+        </span>
+      </button>
+
+      {/* Reset pill — only visible when active */}
+      {timeLeft !== null && (
+        <button
+          onClick={reset}
+          className="text-[11px] text-white/35 hover:text-white/60 transition-colors"
+          style={{ fontFamily: 'Tajawal, serif' }}
+        >
+          إعادة
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -412,7 +506,7 @@ export default function App() {
     <div
       className="min-h-screen flex flex-col items-center justify-start gap-4 py-6 px-3 select-none"
       style={{
-        background: 'linear-gradient(160deg, #0a0a12 0%, #10101e 50%, #0d0d18 100%)',
+        background: 'linear-gradient(160deg, #080808 0%, #111111 50%, #0d0d0d 100%)',
         fontFamily: 'Tajawal, serif',
       }}
       onClick={handleCancel}
@@ -433,6 +527,9 @@ export default function App() {
 
       {/* ── Score Board ── */}
       <ScoreBoard yellow={score.yellow} blue={score.blue} onReset={() => setScore({ yellow: 0, blue: 0 })} />
+
+      {/* ── Countdown Timer ── */}
+      <CountdownTimer />
 
       {/* ── Move Counter ── */}
       {!winner && moveCount > 0 && (
@@ -474,9 +571,13 @@ export default function App() {
                 className="absolute"
                 style={{ left: x, top: y, width: HEX_W, height: HEX_H }}
               >
-                {/* Border */}
+                {/* Border — white + pulsing when selected */}
                 <div className="absolute inset-0"
-                     style={{ clipPath: CLIP, background: isWinCell ? '#ffffff' : BORDER_COLOR }} />
+                     style={{
+                       clipPath: CLIP,
+                       background: isWinCell ? '#ffffff' : isSel ? '#ffffff' : BORDER_COLOR,
+                       animation: isSel ? 'selectedPulse 0.7s ease-in-out infinite' : 'none',
+                     }} />
 
                 {/* Fill */}
                 <div
@@ -484,10 +585,14 @@ export default function App() {
                   style={{
                     top: 4, left: 4, right: 4, bottom: 4,
                     clipPath: CLIP,
-                    background: hexFill(cell.color, isSel),
-                    filter: hexGlow(cell.color),
+                    background: isSel
+                      ? '#1e293b'                   /* dark slate — official, clear */
+                      : hexFill(cell.color, false),
+                    filter: isSel
+                      ? 'drop-shadow(0 0 14px rgba(255,255,255,1))'
+                      : hexGlow(cell.color),
                     transition: 'background 0.2s ease, filter 0.2s ease, transform 0.15s ease',
-                    transform: isSel ? 'scale(0.88)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
+                    transform: isSel ? 'scale(0.92)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
                     animation: isWinCell ? 'winPulse 0.8s ease-in-out infinite' : 'none',
                   }}
                   onClick={() => handleCellClick(cell.row, cell.col)}
@@ -498,9 +603,11 @@ export default function App() {
                       fontSize: SIZE * 0.56,
                       fontFamily: 'Tajawal, serif',
                       lineHeight: 1,
-                      color: cell.color === 'neutral' ? '#111111'
+                      color: isSel ? '#ffffff'          /* white on dark slate */
+                           : cell.color === 'neutral' ? '#111111'
                            : cell.color === 'yellow'  ? '#1a1200' : '#ffffff',
-                      textShadow: cell.color !== 'neutral' ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
+                      textShadow: isSel ? 'none'
+                                : cell.color !== 'neutral' ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
                       transition: 'color 0.2s',
                     }}
                   >
