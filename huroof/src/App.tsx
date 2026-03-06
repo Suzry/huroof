@@ -302,6 +302,20 @@ function WinOverlay({ winner, moveCount, onReset }: { winner: Team; moveCount: n
              style={{ fontFamily: 'Tajawal, serif', textShadow: '0 0 30px rgba(255,255,255,0.8)' }}>
             الفائز
           </p>
+          <img
+            src="/winner.png"
+            alt="winner"
+            style={{
+              width: 110,
+              height: 110,
+              objectFit: 'cover',
+              borderRadius: '50%',
+              border: ` ${winColor}`,
+              boxShadow: `0 0 18px ${winColor}88`,
+              margin: '6px auto',
+              display: 'block',
+            }}
+          />
           <h2 className="text-4xl font-black"
               style={{ fontFamily: 'Tajawal, serif', color: winColor, textShadow: `0 0 30px ${winColor}cc` }}>
             الفريق {isYellow ? 'الأصفر' : 'الأزرق'}
@@ -387,7 +401,7 @@ function CountdownTimer() {
         }}
       >
         {/* Clock icon */}
-        <span style={{ fontSize: 22, lineHeight: 1, color: '#ffffff' }}>⏱</span>
+        <span style={{ fontSize: 22, lineHeight: 1, color: '#ffffff' }}>⏳</span>
 
         {/* Number */}
         <span
