@@ -79,10 +79,12 @@ type Grid = Cell[][]
 // ─── Pure Helpers ─────────────────────────────────────────────────────────────
 
 function makeGrid(): Grid {
+  // Shuffle all letters then take exactly ROWS×COLS — no duplicates possible
+  const shuffled = [...ARABIC_LETTERS].sort(() => Math.random() - 0.5).slice(0, ROWS * COLS)
   return Array.from({ length: ROWS }, (_, r) =>
     Array.from({ length: COLS }, (_, c) => ({
       row: r, col: c,
-      letter: ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)],
+      letter: shuffled[r * COLS + c],
       color: 'neutral' as CellColor,
     }))
   )
