@@ -366,8 +366,17 @@ export default function App() {
 
   const handleCellClick = useCallback((r: number, c: number) => {
     if (winner) return
-    if (grid[r][c].color !== 'neutral') return
-    setSelected([r, c])
+    // Neutral cell → open color picker
+    if (grid[r][c].color === 'neutral') {
+      setSelected([r, c])
+      return
+    }
+    // Colored cell → reset to neutral (undo)
+    const newGrid: Grid = grid.map(row => row.map(cell => ({ ...cell })))
+    newGrid[r][c].color = 'neutral'
+    setGrid(newGrid)
+    setSelected(null)
+    setMoveCount(m => Math.max(0, m - 1))
   }, [grid, winner])
 
   const handleColorSelect = useCallback((color: Team) => {
