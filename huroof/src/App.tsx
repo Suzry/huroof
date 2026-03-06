@@ -383,7 +383,7 @@ function CountdownTimer() {
           background: 'rgba(255,255,255,0.06)',
           border: `1.5px solid ${timeLeft !== null ? color : 'rgba(255,255,255,0.15)'}`,
           boxShadow: timeLeft !== null ? `0 0 14px ${color}44` : 'none',
-          animation: isDone ? 'timerFlash 0.5s ease-in-out infinite' : 'none',
+          animation: isDone ? 'timerFlash 1.5s ease-in-out infinite' : 'none',
         }}
       >
         {/* Clock icon */}
@@ -402,6 +402,7 @@ function CountdownTimer() {
         >
           {isDone ? 'مفتوح للكل' : timeLeft !== null ? timeLeft : '١٠'}
         </span>
+        
       </button>
 
       {/* Reset pill — only visible when active */}
