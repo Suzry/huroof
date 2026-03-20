@@ -51,20 +51,25 @@ const ROWS = 5
 const COLS = 5
 const CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
 
-// Board horizontal padding (left + right inside the mat)
-const BOARD_PAD_X = 24   // px each side
-const BOARD_PAD_Y = 20   // px each side
+// Board padding inside the play field
+const BOARD_PAD_X = 28
+const BOARD_PAD_Y = 24
+const DESKTOP_BREAKPOINT = 1024
+const SIDEBAR_WIDTH = 336
 
-/**
- * Compute the hex SIZE that fits inside `availableWidth`.
- * totalW = COLS * SIZE*√3 + SIZE*√3/2 + 4  (grid) + 2*BOARD_PAD_X (mat)
- * Solve for SIZE:  SIZE = (availW - 4 - 2*BOARD_PAD_X) / (√3 * (COLS + 0.5))
- */
-function computeSize(viewportW: number): number {
-  const maxSize = 54
-  const minSize = 28
-  const available = Math.min(viewportW, 600) - 2 * BOARD_PAD_X - 8  // 8 = grid offset
-  const size = available / (Math.sqrt(3) * (COLS + 0.5))
+function computeSize(viewportW: number, viewportH: number): number {
+  const isDesktop = viewportW >= DESKTOP_BREAKPOINT
+  const maxSize = isDesktop ? 88 : viewportW >= 640 ? 68 : 48
+  const minSize = viewportW < 420 ? 28 : 34
+  const boardWidthBudget = isDesktop
+    ? Math.max(620, viewportW - SIDEBAR_WIDTH - 156)
+    : Math.max(320, Math.min(viewportW - 44, 760))
+  const boardHeightBudget = isDesktop
+    ? Math.max(480, viewportH - 112)
+    : Math.max(420, viewportH - 330)
+  const widthSize = (boardWidthBudget - 2 * BOARD_PAD_X - 8) / (Math.sqrt(3) * (COLS + 0.5))
+  const heightSize = (boardHeightBudget - 2 * BOARD_PAD_Y - 4) / 8
+  const size = Math.min(widthSize, heightSize)
   return Math.max(minSize, Math.min(maxSize, Math.floor(size)))
 }
 
@@ -153,34 +158,59 @@ function findWinPath(grid: Grid, color: Team): Set<string> | null {
 
 // ─── ScoreBoard ───────────────────────────────────────────────────────────────
 
+function TeamScoreBadge({ team, score }: { team: Team; score: number }) {
+  const isYellow = team === 'yellow'
+  const fill = isYellow ? YELLOW_MAIN : BLUE_MAIN
+  const textColor = isYellow ? '#1a1200' : '#ffffff'
+  const label = isYellow ? 'الأصفر' : 'الأزرق'
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div
+        className="relative"
+        style={{
+          width: 88,
+          height: 98,
+          filter: `drop-shadow(0 10px 22px ${fill}40)`,
+        }}
+      >
+        <div className="absolute inset-0" style={{ clipPath: CLIP, background: BORDER_COLOR }} />
+        <div
+          className="absolute inset-[5px] flex items-center justify-center"
+          style={{ clipPath: CLIP, background: fill }}
+        >
+          <span
+            className="text-4xl font-black"
+            style={{ fontFamily: 'Tajawal, serif', color: textColor, lineHeight: 1 }}
+          >
+            {score}
+          </span>
+        </div>
+      </div>
+      <span className="text-sm font-bold text-white/70" style={{ fontFamily: 'Tajawal, serif' }}>
+        {label}
+      </span>
+    </div>
+  )
+}
+
 function ScoreBoard({ yellow, blue, onReset }: { yellow: number; blue: number; onReset: () => void }) {
   return (
     <div
-      className="flex flex-col items-center gap-1.5 rounded-2xl px-4 pt-2.5 pb-2"
+      className="w-full rounded-[30px] px-5 py-5"
       style={{
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.12)',
         fontFamily: 'Tajawal, serif',
       }}
     >
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: YELLOW_MAIN, boxShadow: `0 0 6px ${YELLOW_MAIN}` }} />
-          <span className="text-yellow-300 text-sm font-bold">الأصفر</span>
-          <span className="text-xl font-black text-yellow-300 min-w-[24px] text-center"
-                style={{ textShadow: `0 0 12px ${YELLOW_MAIN}` }}>{yellow}</span>
-        </div>
-        <span className="text-white/20 font-thin">—</span>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xl font-black text-sky-300 min-w-[24px] text-center"
-                style={{ textShadow: `0 0 12px ${BLUE_MAIN}` }}>{blue}</span>
-          <span className="text-sky-300 text-sm font-bold">الأزرق</span>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: BLUE_MAIN, boxShadow: `0 0 6px ${BLUE_MAIN}` }} />
-        </div>
+      <div className="mb-4 flex items-center justify-center gap-5">
+        <TeamScoreBadge team="yellow" score={yellow} />
+        <TeamScoreBadge team="blue" score={blue} />
       </div>
       <button
         onClick={onReset}
-        className="text-[11px] text-white/45 hover:text-white/80 transition-colors tracking-wider hover:underline"
+        className="w-full rounded-full px-4 py-2 text-sm font-bold text-white/70 transition-colors hover:text-white"
         style={{ fontFamily: 'Tajawal, serif' }}
       >
         تصفير النتائج
@@ -196,20 +226,25 @@ interface PopupProps {
   onCancel: () => void
   /** Whether to open below the cell instead of above (for top-edge cells) */
   openBelow?: boolean
+  align?: 'center' | 'left' | 'right'
 }
 
-function ColorPopup({ onSelect, onCancel, openBelow }: PopupProps) {
+function ColorPopup({ onSelect, onCancel, openBelow, align = 'center' }: PopupProps) {
   const pos = openBelow
     ? { top: '115%', bottom: 'auto' }
     : { bottom: '115%', top: 'auto' }
+  const anchor = align === 'left'
+    ? { left: 0, right: 'auto', transform: 'none' }
+    : align === 'right'
+      ? { right: 0, left: 'auto', transform: 'none' }
+      : { left: '50%', right: 'auto', transform: 'translateX(-50%)' }
 
   return (
     <div
       className="absolute z-50 flex flex-col gap-2 rounded-2xl p-3 shadow-2xl"
       style={{
         ...pos,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        ...anchor,
         minWidth: 138,
         background: 'rgba(10,12,20,0.97)',
         border: '1px solid rgba(255,255,255,0.12)',
@@ -348,7 +383,7 @@ function WinOverlay({ winner, moveCount, onReset }: { winner: Team; moveCount: n
 
 // ─── CountdownTimer ───────────────────────────────────────────────────────────
 
-function CountdownTimer() {
+function CountdownTimer({ panel = false }: { panel?: boolean }) {
   const TOTAL = 10
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -388,11 +423,15 @@ function CountdownTimer() {
     : '#4ade80'
 
   return (
-    <div className="flex items-center gap-3" style={{ fontFamily: 'Tajawal, serif' }}>
-      {/* Main timer display + start button */}
+    <div
+      className={panel ? 'flex w-full flex-col items-stretch gap-2' : 'flex items-center gap-3'}
+      style={{ fontFamily: 'Tajawal, serif' }}
+    >
       <button
         onClick={isRunning ? reset : start}
-        className="flex items-center gap-3 rounded-2xl px-7 py-3.5 transition-all active:scale-95"
+        className={`flex items-center rounded-[26px] px-7 py-3.5 transition-all active:scale-95 ${
+          panel ? 'w-full justify-center gap-4' : 'gap-3'
+        }`}
         style={{
           background: 'rgba(255,255,255,0.06)',
           border: `1.5px solid ${timeLeft !== null ? color : 'rgba(255,255,255,0.15)'}`,
@@ -400,10 +439,8 @@ function CountdownTimer() {
           animation: isDone ? 'timerFlash 1.5s ease-in-out infinite' : 'none',
         }}
       >
-        {/* Clock icon */}
         <span style={{ fontSize: 22, lineHeight: 1, color: '#ffffff' }}>⏳</span>
 
-        {/* Number */}
         <span
           className="font-black min-w-[28px] text-center"
           style={{
@@ -416,14 +453,14 @@ function CountdownTimer() {
         >
           {isDone ? 'مفتوح للكل' : timeLeft !== null ? timeLeft : '١٠'}
         </span>
-        
       </button>
 
-      {/* Reset pill — only visible when active */}
       {timeLeft !== null && (
         <button
           onClick={reset}
-          className="text-[11px] text-white/35 hover:text-white/60 transition-colors"
+          className={panel
+            ? 'text-sm font-bold text-white/40 transition-colors hover:text-white/75'
+            : 'text-[11px] text-white/35 hover:text-white/60 transition-colors'}
           style={{ fontFamily: 'Tajawal, serif' }}
         >
           إعادة
@@ -445,16 +482,26 @@ export default function App() {
   const [score, setScore]           = useState({ yellow: 0, blue: 0 })
 
   // ── Dynamic sizing from viewport width ──────────────────────────────────────
-  const [viewportW, setViewportW] = useState(() => window.innerWidth)
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }))
 
   useEffect(() => {
-    const onResize = () => setViewportW(window.innerWidth)
+    const onResize = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
   // Compute hex dimensions reactively
-  const SIZE   = computeSize(viewportW)
+  const viewportW = viewport.width
+  const viewportH = viewport.height
+  const SIZE   = computeSize(viewportW, viewportH)
   const HEX_W  = SIZE * Math.sqrt(3)
   const HEX_H  = SIZE * 2
   const H_STEP = HEX_W
@@ -463,13 +510,6 @@ export default function App() {
   const totalW = COLS * H_STEP + HEX_W / 2 + 4
   const totalH = (ROWS - 1) * V_STEP + HEX_H + 4
   // ───────────────────────────────────────────────────────────────────────────
-
-  // On mobile, allow scrolling (game might be taller than viewport)
-  useEffect(() => {
-    const isMobile = viewportW < 600
-    document.body.style.overflow = isMobile ? 'auto' : 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [viewportW])
 
   const handleCellClick = useCallback((r: number, c: number) => {
     if (winner) return
@@ -515,11 +555,19 @@ export default function App() {
     return 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))'
   }
 
-  const isMobile = viewportW < 600
+  const isDesktop = viewportW >= DESKTOP_BREAKPOINT
+  const isShortDesktop = isDesktop && viewportH < 860
+
+  // Allow page scrolling on compact or short desktop layouts to avoid clipping.
+  useEffect(() => {
+    const isCompact = viewportW < DESKTOP_BREAKPOINT
+    document.body.style.overflow = isCompact || isShortDesktop ? 'auto' : 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [isShortDesktop, viewportW])
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-start gap-4 py-6 px-3 select-none"
+      className="min-h-screen select-none"
       style={{
         background: 'linear-gradient(160deg, #080808 0%, #111111 50%, #0d0d0d 100%)',
         fontFamily: 'Tajawal, serif',
@@ -527,152 +575,228 @@ export default function App() {
       onClick={handleCancel}
       dir="rtl"
     >
-      {/* ── Header ── */}
-      <h1
-        className="text-3xl font-black"
-        style={{
-          color: '#ffffff',
-          fontFamily: 'Tajawal, serif',
-          letterSpacing: '0.04em',
-          textShadow: '0 2px 20px rgba(255,255,255,0.15)',
-        }}
-      >
-        حروف مع بوحميد
-      </h1>
-
-      {/* ── Score Board ── */}
-      <ScoreBoard yellow={score.yellow} blue={score.blue} onReset={() => setScore({ yellow: 0, blue: 0 })} />
-
-      {/* ── Countdown Timer ── */}
-      <CountdownTimer />
-
-      {/* ── Move Counter ── */}
-      {!winner && moveCount > 0 && (
-        <div className="flex flex-col items-center -mt-1">
-          <span className="text-2xl font-black text-white/60" style={{ fontFamily: 'Tajawal, serif' }}>{moveCount}</span>
-          <span className="text-[10px] text-white/25 tracking-widest">حركات</span>
-        </div>
-      )}
-
-      {/* ── Board ── */}
       <div
+        className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 p-3 md:p-4 lg:flex-row lg:gap-6 lg:p-6"
         style={{
-          padding: `${BOARD_PAD_Y}px ${BOARD_PAD_X}px`,
-          borderRadius: 18,
-          background: [
-            'conic-gradient(from -45deg at 50% 50%,',
-            `  ${YELLOW_MAIN} 0deg 90deg,`,
-            `  ${BLUE_MAIN}   90deg 180deg,`,
-            `  ${YELLOW_MAIN} 180deg 270deg,`,
-            `  ${BLUE_MAIN}   270deg 360deg)`,
-          ].join(''),
-          boxShadow: '0 10px 36px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.1)',
+          minHeight: isDesktop ? 'calc(100vh - 12px)' : undefined,
+          gap: isShortDesktop ? 16 : undefined,
+          paddingTop: isShortDesktop ? 16 : undefined,
+          paddingBottom: isShortDesktop ? 16 : undefined,
         }}
-        onClick={e => e.stopPropagation()}
       >
-        <div className="relative overflow-visible" style={{ width: totalW, height: totalH }}>
-          {grid.flat().map(cell => {
-            const x = cell.col * H_STEP + (cell.row % 2 === 1 ? HEX_W / 2 : 0) + 2
-            const y = cell.row * V_STEP + 2
-            const isSel      = selected?.[0] === cell.row && selected?.[1] === cell.col
-            const justPlaced = lastPlaced === `${cell.row},${cell.col}`
-            const isWinCell  = winPath.has(`${cell.row},${cell.col}`)
-            // Popup opens below for top 2 rows on mobile to avoid clipping
-            const openBelow  = isMobile && cell.row < 2
+        <aside
+          className="relative w-full overflow-x-hidden overflow-y-auto rounded-[34px] px-4 py-5 lg:max-w-[336px] lg:px-6 lg:py-7"
+          style={{
+            background: 'linear-gradient(180deg, rgba(17,24,39,0.98) 0%, rgba(8,12,24,0.98) 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 50px rgba(0,0,0,0.35)',
+            maxHeight: isDesktop ? 'calc(100vh - 48px)' : undefined,
+            paddingTop: isShortDesktop ? 20 : undefined,
+            paddingBottom: isShortDesktop ? 20 : undefined,
+          }}
+        >
+          <div
+            className="pointer-events-none absolute inset-0 opacity-80"
+            style={{
+              background: [
+                'radial-gradient(circle at top, rgba(250,204,21,0.16), transparent 34%)',
+                'radial-gradient(circle at bottom, rgba(56,189,248,0.14), transparent 36%)',
+              ].join(','),
+            }}
+          />
 
-            return (
-              <div
-                key={`${cell.row}-${cell.col}`}
-                className="absolute"
-                style={{ left: x, top: y, width: HEX_W, height: HEX_H }}
+          <div className="relative flex h-full flex-col gap-5" style={{ gap: isShortDesktop ? 16 : undefined }}>
+            <button
+              onClick={reset}
+              className="mx-auto rounded-full px-8 py-3 text-base font-black text-slate-900 transition-transform hover:scale-[1.02] active:scale-95"
+              style={{
+                background: 'rgba(255,255,255,0.94)',
+                minWidth: 172,
+                boxShadow: '0 10px 22px rgba(0,0,0,0.18)',
+                fontFamily: 'Tajawal, serif',
+              }}
+            >
+              لعبة جديدة
+            </button>
+
+            <div className="text-center leading-[0.88]">
+              <span
+                className="block font-black"
+                style={{
+                  fontSize: isShortDesktop ? 'clamp(2.15rem,6vw,3.5rem)' : 'clamp(2.7rem,8vw,4.6rem)',
+                  color: YELLOW_MAIN,
+                  textShadow: `4px 4px 0 ${YELLOW_DARK}, 0 0 22px ${YELLOW_MAIN}44`,
+                }}
               >
-                {/* Border — white + pulsing when selected */}
-                <div className="absolute inset-0"
-                     style={{
-                       clipPath: CLIP,
-                       background: isWinCell ? '#ffffff' : isSel ? '#ffffff' : BORDER_COLOR,
-                       animation: isSel ? 'selectedPulse 0.7s ease-in-out infinite' : 'none',
-                     }} />
+                حروف
+              </span>
+              <span
+                className="block font-black"
+                style={{
+                  fontSize: isShortDesktop ? 'clamp(1.8rem,5.2vw,3rem)' : 'clamp(2.2rem,7vw,3.9rem)',
+                  color: BLUE_MAIN,
+                  textShadow: `4px 4px 0 ${BLUE_DARK}, 0 0 22px ${BLUE_MAIN}44`,
+                }}
+              >
+                مع بوحميد
+              </span>
+            </div>
 
-                {/* Fill */}
-                <div
-                  className="absolute flex cursor-pointer items-center justify-center"
-                  style={{
-                    top: 4, left: 4, right: 4, bottom: 4,
-                    clipPath: CLIP,
-                    background: isSel
-                      ? '#1e293b'                   /* dark slate — official, clear */
-                      : hexFill(cell.color, false),
-                    filter: isSel
-                      ? 'drop-shadow(0 0 14px rgba(255,255,255,1))'
-                      : hexGlow(cell.color),
-                    transition: 'background 0.2s ease, filter 0.2s ease, transform 0.15s ease',
-                    transform: isSel ? 'scale(0.92)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
-                    animation: isWinCell ? 'winPulse 0.8s ease-in-out infinite' : 'none',
-                  }}
-                  onClick={() => handleCellClick(cell.row, cell.col)}
-                >
-                  <span
-                    style={{
-                      fontWeight: 900,
-                      fontSize: SIZE * 0.56,
-                      fontFamily: 'Tajawal, serif',
-                      lineHeight: 1,
-                      color: isSel ? '#ffffff'          /* white on dark slate */
-                           : cell.color === 'neutral' ? '#111111'
-                           : cell.color === 'yellow'  ? '#1a1200' : '#ffffff',
-                      textShadow: isSel ? 'none'
-                                : cell.color !== 'neutral' ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
-                      transition: 'color 0.2s',
-                    }}
-                  >
-                    {cell.letter}
-                  </span>
-                </div>
+            <ScoreBoard
+              yellow={score.yellow}
+              blue={score.blue}
+              onReset={() => setScore({ yellow: 0, blue: 0 })}
+            />
 
-                {/* Popup */}
-                {isSel && (
-                  <ColorPopup
-                    onSelect={handleColorSelect}
-                    onCancel={handleCancel}
-                    openBelow={openBelow}
-                  />
-                )}
+            <div
+              className="rounded-[28px] px-4 py-4 text-center"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <span className="block text-[11px] font-bold tracking-[0.25em] text-white/40">حركات</span>
+              <span className="mt-2 block text-4xl font-black text-white">
+                {moveCount}
+              </span>
+            </div>
+
+            <div
+              className="rounded-[30px] px-5 py-5"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="mb-3 text-center text-xs font-bold tracking-[0.35em] text-white/35">
+                المؤقت
               </div>
-            )
-          })}
-        </div>
-      </div>
+              <CountdownTimer panel />
+            </div>
+          </div>
+        </aside>
 
-      {/* ── Reset ── */}
-      <button
-        onClick={reset}
-        className="rounded-2xl px-6 py-2.5 text-base font-bold text-white transition-all hover:scale-105 active:scale-95"
-        style={{
-          background: 'rgba(255,255,255,0.07)',
-          border: '1.5px solid rgba(255,255,255,0.14)',
-          backdropFilter: 'blur(8px)',
-          fontFamily: 'Tajawal, serif',
-          boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-        }}
-      >
-        لعبة جديدة
-      </button>
+        <section
+          className="relative flex min-h-[540px] flex-1 items-center justify-center overflow-hidden rounded-[36px] p-3 sm:p-4 lg:p-8"
+          style={{
+            background: BLUE_MAIN,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+            minHeight: isShortDesktop ? 460 : undefined,
+            padding: isShortDesktop ? 20 : undefined,
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: YELLOW_MAIN,
+              clipPath: 'polygon(12% 0%, 88% 0%, 66% 28%, 34% 28%)',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: YELLOW_MAIN,
+              clipPath: 'polygon(34% 72%, 66% 72%, 88% 100%, 12% 100%)',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: [
+                'linear-gradient(145deg, rgba(255,255,255,0.14), transparent 36%)',
+                'linear-gradient(325deg, rgba(255,255,255,0.1), transparent 34%)',
+              ].join(','),
+            }}
+          />
 
-      {/* ── Quick rules ── */}
-      <div
-        className="flex gap-4 text-xs text-white/30 rounded-2xl px-4 py-2"
-        style={{ fontFamily: 'Tajawal, serif', background: 'rgba(255,255,255,0.04)' }}
-      >
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: YELLOW_MAIN }} />
-          الأصفر: أعلى ↕ أسفل
-        </span>
-        <span className="text-white/15">•</span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: BLUE_MAIN }} />
-          الأزرق: يسار ↔ يمين
-        </span>
+          <div
+            className="relative flex items-center justify-center rounded-[30px]"
+            style={{
+              padding: `${BOARD_PAD_Y}px ${BOARD_PAD_X}px`,
+              background: 'rgba(7,10,18,0.1)',
+              boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.12)',
+            }}
+          >
+            <div className="relative overflow-visible" style={{ width: totalW, height: totalH }}>
+              {grid.flat().map(cell => {
+                const x = cell.col * H_STEP + (cell.row % 2 === 1 ? HEX_W / 2 : 0) + 2
+                const y = cell.row * V_STEP + 2
+                const isSel      = selected?.[0] === cell.row && selected?.[1] === cell.col
+                const justPlaced = lastPlaced === `${cell.row},${cell.col}`
+                const isWinCell  = winPath.has(`${cell.row},${cell.col}`)
+                const openBelow = cell.row < 2 || (isShortDesktop && cell.row < 3)
+                const popupAlign = x < HEX_W * 0.7
+                  ? 'left'
+                  : x + HEX_W > totalW - HEX_W * 0.7
+                    ? 'right'
+                    : 'center'
+
+                return (
+                  <div
+                    key={`${cell.row}-${cell.col}`}
+                    className="absolute"
+                    style={{ left: x, top: y, width: HEX_W, height: HEX_H }}
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        clipPath: CLIP,
+                        background: isWinCell ? '#ffffff' : isSel ? '#ffffff' : BORDER_COLOR,
+                        animation: isSel ? 'selectedPulse 0.7s ease-in-out infinite' : 'none',
+                      }}
+                    />
+
+                    <div
+                      className="absolute flex cursor-pointer items-center justify-center"
+                      style={{
+                        top: 4,
+                        left: 4,
+                        right: 4,
+                        bottom: 4,
+                        clipPath: CLIP,
+                        background: isSel ? '#1e293b' : hexFill(cell.color, false),
+                        filter: isSel
+                          ? 'drop-shadow(0 0 14px rgba(255,255,255,1))'
+                          : hexGlow(cell.color),
+                        transition: 'background 0.2s ease, filter 0.2s ease, transform 0.15s ease',
+                        transform: isSel ? 'scale(0.92)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
+                        animation: isWinCell ? 'winPulse 0.8s ease-in-out infinite' : 'none',
+                      }}
+                      onClick={() => handleCellClick(cell.row, cell.col)}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 900,
+                          fontSize: SIZE * 0.56,
+                          fontFamily: 'Tajawal, serif',
+                          lineHeight: 1,
+                          color: isSel ? '#ffffff'
+                            : cell.color === 'neutral' ? '#111111'
+                            : cell.color === 'yellow' ? '#1a1200' : '#ffffff',
+                          textShadow: isSel ? 'none'
+                            : cell.color !== 'neutral' ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
+                          transition: 'color 0.2s',
+                        }}
+                      >
+                        {cell.letter}
+                      </span>
+                    </div>
+
+                    {isSel && (
+                      <ColorPopup
+                        onSelect={handleColorSelect}
+                        onCancel={handleCancel}
+                        openBelow={openBelow}
+                        align={popupAlign}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* ── Win Overlay ── */}
