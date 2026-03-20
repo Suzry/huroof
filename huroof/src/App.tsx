@@ -306,81 +306,6 @@ function ColorPopup({ onSelect, onCancel, openBelow, align = 'center' }: PopupPr
   )
 }
 
-// ─── WinOverlay ───────────────────────────────────────────────────────────────
-
-function WinOverlay({ winner, moveCount, onReset }: { winner: Team; moveCount: number; onReset: () => void }) {
-  const isYellow = winner === 'yellow'
-  const winColor = isYellow ? YELLOW_MAIN : BLUE_MAIN
-  const winDark  = isYellow ? YELLOW_DARK  : BLUE_DARK
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(14px)', animation: 'fadeIn 0.3s ease' }}
-      onClick={onReset}
-    >
-      <div
-        className="relative flex flex-col items-center gap-5 rounded-3xl px-8 py-10 text-center w-full"
-        style={{
-          background: isYellow ? 'rgba(20,15,0,0.97)' : 'rgba(0,8,20,0.97)',
-          border: `3px solid ${winColor}`,
-          boxShadow: `0 0 60px ${winColor}55`,
-          animation: 'popIn 0.3s ease',
-          maxWidth: 340,
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="absolute inset-0 rounded-3xl -z-10 blur-3xl opacity-25" style={{ background: winColor }} />
-
-        <div>
-          <p className="text-white font-bold text-2xl mb-1"
-             style={{ fontFamily: 'Tajawal, serif', textShadow: '0 0 30px rgba(255,255,255,0.8)' }}>
-            الفائز
-          </p>
-          <img
-            src="/winner.png"
-            alt="winner"
-            style={{
-              width: 110,
-              height: 110,
-              objectFit: 'cover',
-              borderRadius: '50%',
-              border: ` ${winColor}`,
-              boxShadow: `0 0 18px ${winColor}88`,
-              margin: '6px auto',
-              display: 'block',
-            }}
-          />
-          <h2 className="text-4xl font-black"
-              style={{ fontFamily: 'Tajawal, serif', color: winColor, textShadow: `0 0 30px ${winColor}cc` }}>
-            الفريق {isYellow ? 'الأصفر' : 'الأزرق'}
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-2xl px-6 py-3"
-             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <span className="text-white/40 text-sm" style={{ fontFamily: 'Tajawal, serif' }}>في</span>
-          <span className="text-2xl font-black text-white" style={{ fontFamily: 'Tajawal, serif' }}>{moveCount}</span>
-          <span className="text-white/40 text-sm" style={{ fontFamily: 'Tajawal, serif' }}>حركة</span>
-        </div>
-
-        <button
-          onClick={onReset}
-          className="w-full rounded-2xl py-3.5 text-lg font-bold transition-all hover:brightness-110 active:scale-95"
-          style={{
-            background: `linear-gradient(135deg, ${winColor}, ${winDark})`,
-            boxShadow: `0 4px 20px ${winColor}50`,
-            fontFamily: 'Tajawal, serif',
-            color: isYellow ? '#1a1200' : '#ffffff',
-          }}
-        >
-          لعبة جديدة
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ─── CountdownTimer ───────────────────────────────────────────────────────────
 
 function CountdownTimer({ panel = false }: { panel?: boolean }) {
@@ -726,6 +651,9 @@ export default function App() {
                 const justPlaced = lastPlaced === `${cell.row},${cell.col}`
                 const isWinCell  = winPath.has(`${cell.row},${cell.col}`)
                 const openBelow = cell.row < 2 || (isShortDesktop && cell.row < 3)
+                const winGlow = cell.color === 'yellow'
+                  ? `drop-shadow(0 0 16px ${YELLOW_MAIN}) drop-shadow(0 0 28px ${YELLOW_MAIN}cc) brightness(1.08)`
+                  : `drop-shadow(0 0 16px ${BLUE_MAIN}) drop-shadow(0 0 28px ${BLUE_MAIN}cc) brightness(1.08)`
                 const popupAlign = x < HEX_W * 0.7
                   ? 'left'
                   : x + HEX_W > totalW - HEX_W * 0.7
@@ -758,9 +686,11 @@ export default function App() {
                         background: isSel ? '#1e293b' : hexFill(cell.color, false),
                         filter: isSel
                           ? 'drop-shadow(0 0 14px rgba(255,255,255,1))'
+                          : isWinCell
+                            ? winGlow
                           : hexGlow(cell.color),
                         transition: 'background 0.2s ease, filter 0.2s ease, transform 0.15s ease',
-                        transform: isSel ? 'scale(0.92)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
+                        transform: isSel ? 'scale(0.92)' : isWinCell ? 'scale(1.04)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
                         animation: isWinCell ? 'winPulse 0.8s ease-in-out infinite' : 'none',
                       }}
                       onClick={() => handleCellClick(cell.row, cell.col)}
@@ -798,9 +728,6 @@ export default function App() {
           </div>
         </section>
       </div>
-
-      {/* ── Win Overlay ── */}
-      {winner && <WinOverlay winner={winner} moveCount={moveCount} onReset={reset} />}
     </div>
   )
 }
