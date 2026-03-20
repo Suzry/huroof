@@ -156,6 +156,16 @@ function findWinPath(grid: Grid, color: Team): Set<string> | null {
   return null
 }
 
+function resolveWinner(grid: Grid): { winner: Team | null; path: Set<string> } {
+  const yellowPath = findWinPath(grid, 'yellow')
+  if (yellowPath) return { winner: 'yellow', path: yellowPath }
+
+  const bluePath = findWinPath(grid, 'blue')
+  if (bluePath) return { winner: 'blue', path: bluePath }
+
+  return { winner: null, path: new Set() }
+}
+
 // ─── ScoreBoard ───────────────────────────────────────────────────────────────
 
 function TeamScoreBadge({ team, score }: { team: Team; score: number }) {
@@ -219,88 +229,105 @@ function ScoreBoard({ yellow, blue, onReset }: { yellow: number; blue: number; o
   )
 }
 
-// ─── ColorPopup ───────────────────────────────────────────────────────────────
-
 interface PopupProps {
   onSelect: (color: Team) => void
   onCancel: () => void
-  /** Whether to open below the cell instead of above (for top-edge cells) */
   openBelow?: boolean
   align?: 'center' | 'left' | 'right'
 }
 
 function ColorPopup({ onSelect, onCancel, openBelow, align = 'center' }: PopupProps) {
   const pos = openBelow
-    ? { top: '115%', bottom: 'auto' }
-    : { bottom: '115%', top: 'auto' }
+    ? { top: 'calc(100% + 12px)', bottom: 'auto' }
+    : { bottom: 'calc(100% + 12px)', top: 'auto' }
   const anchor = align === 'left'
     ? { left: 0, right: 'auto', transform: 'none' }
     : align === 'right'
       ? { right: 0, left: 'auto', transform: 'none' }
       : { left: '50%', right: 'auto', transform: 'translateX(-50%)' }
+  const arrowAnchor = align === 'left'
+    ? { left: 28, right: 'auto', transform: 'none' }
+    : align === 'right'
+      ? { right: 28, left: 'auto', transform: 'none' }
+      : { left: '50%', right: 'auto', transform: 'translateX(-50%)' }
 
   return (
     <div
-      className="absolute z-50 flex flex-col gap-2 rounded-2xl p-3 shadow-2xl"
+      className="absolute z-50 flex flex-col gap-2 rounded-[28px] px-3.5 py-3.5 shadow-2xl"
       style={{
         ...pos,
         ...anchor,
-        minWidth: 138,
-        background: 'rgba(10,12,20,0.97)',
+        minWidth: 164,
+        background: 'rgba(11,15,25,0.98)',
         border: '1px solid rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(16px)',
-        animation: 'popIn 0.15s ease-out',
+        backdropFilter: 'blur(18px)',
+        boxShadow: '0 24px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
+        animation: 'popIn 0.16s ease-out',
       }}
       onClick={e => e.stopPropagation()}
     >
-      <p className="text-center text-[10px] text-white/40 tracking-widest uppercase mb-0.5"
-         style={{ fontFamily: 'Tajawal, serif' }}>اختر اللون</p>
+      <div className="mb-1 text-center text-[11px] font-bold tracking-[0.28em] text-white/35">
+        اختر الفريق
+      </div>
 
       <button
         onClick={() => onSelect('yellow')}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all hover:brightness-110 active:scale-95"
+        className="flex items-center gap-2 rounded-[20px] px-4 py-3 text-sm font-black transition-all hover:brightness-110 active:scale-95"
         style={{
           background: `linear-gradient(135deg, ${YELLOW_MAIN}, ${YELLOW_DARK})`,
           border: `1.5px solid ${YELLOW_MAIN}`,
-          fontFamily: 'Tajawal, serif',
+          boxShadow: `0 10px 22px ${YELLOW_MAIN}3d`,
           color: '#1a1200',
+          fontFamily: 'Tajawal, serif',
         }}
       >
-        <span className="h-3 w-3 rounded-full flex-shrink-0 bg-white/50" />
+        <span className="h-3.5 w-3.5 rounded-full bg-white/60" />
         الأصفر
       </button>
 
       <button
         onClick={() => onSelect('blue')}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95"
+        className="flex items-center gap-2 rounded-[20px] px-4 py-3 text-sm font-black text-white transition-all hover:brightness-110 active:scale-95"
         style={{
           background: `linear-gradient(135deg, ${BLUE_MAIN}, ${BLUE_DARK})`,
           border: `1.5px solid ${BLUE_MAIN}`,
+          boxShadow: `0 10px 22px ${BLUE_MAIN}3d`,
           fontFamily: 'Tajawal, serif',
         }}
       >
-        <span className="h-3 w-3 rounded-full flex-shrink-0 bg-white/50" />
+        <span className="h-3.5 w-3.5 rounded-full bg-white/60" />
         الأزرق
       </button>
 
-      <div className="h-px bg-white/10 my-0.5" />
-
       <button
         onClick={onCancel}
-        className="rounded-xl px-3 py-1.5 text-sm text-white/50 hover:text-white/80 transition-colors text-center"
+        className="mt-0.5 rounded-[18px] px-3 py-2 text-sm font-bold text-white/45 transition-colors hover:text-white/80"
         style={{ fontFamily: 'Tajawal, serif' }}
       >
         إلغاء
       </button>
 
-      {/* Arrow — flipped based on position */}
       {!openBelow && (
-        <div className="absolute -bottom-[9px] left-1/2 -translate-x-1/2 rotate-45 h-[14px] w-[14px]"
-             style={{ background: 'rgba(10,12,20,0.97)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)' }} />
+        <div
+          className="absolute -bottom-[8px] h-[16px] w-[16px] rotate-45"
+          style={{
+            ...arrowAnchor,
+            background: 'rgba(11,15,25,0.98)',
+            borderRight: '1px solid rgba(255,255,255,0.12)',
+            borderBottom: '1px solid rgba(255,255,255,0.12)',
+          }}
+        />
       )}
       {openBelow && (
-        <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 rotate-45 h-[14px] w-[14px]"
-             style={{ background: 'rgba(10,12,20,0.97)', borderLeft: '1px solid rgba(255,255,255,0.12)', borderTop: '1px solid rgba(255,255,255,0.12)' }} />
+        <div
+          className="absolute -top-[8px] h-[16px] w-[16px] rotate-45"
+          style={{
+            ...arrowAnchor,
+            background: 'rgba(11,15,25,0.98)',
+            borderLeft: '1px solid rgba(255,255,255,0.12)',
+            borderTop: '1px solid rgba(255,255,255,0.12)',
+          }}
+        />
       )}
     </div>
   )
@@ -401,7 +428,6 @@ export default function App() {
   const [grid, setGrid]             = useState<Grid>(makeGrid)
   const [selected, setSelected]     = useState<[number, number] | null>(null)
   const [winner, setWinner]         = useState<Team | null>(null)
-  const [moveCount, setMoveCount]   = useState(0)
   const [lastPlaced, setLastPlaced] = useState<string | null>(null)
   const [winPath, setWinPath]       = useState<Set<string>>(new Set())
   const [score, setScore]           = useState({ yellow: 0, blue: 0 })
@@ -436,16 +462,43 @@ export default function App() {
   const totalH = (ROWS - 1) * V_STEP + HEX_H + 4
   // ───────────────────────────────────────────────────────────────────────────
 
+  const moveCount = grid.flat().reduce(
+    (acc, cell) => {
+      if (cell.color === 'yellow') acc.yellow += 1
+      if (cell.color === 'blue') acc.blue += 1
+      return acc
+    },
+    { yellow: 0, blue: 0 }
+  )
+
+  const syncWinnerState = useCallback((nextGrid: Grid) => {
+    const { winner: nextWinner, path: nextPath } = resolveWinner(nextGrid)
+    setWinner(nextWinner)
+    setWinPath(nextPath)
+    setScore(prev => {
+      if (winner === nextWinner) return prev
+
+      const nextScore = { ...prev }
+      if (winner) nextScore[winner] = Math.max(0, nextScore[winner] - 1)
+      if (nextWinner) nextScore[nextWinner] += 1
+      return nextScore
+    })
+  }, [winner])
+
   const handleCellClick = useCallback((r: number, c: number) => {
-    if (winner) return
-    if (grid[r][c].color === 'neutral') { setSelected([r, c]); return }
+    if (grid[r][c].color === 'neutral') {
+      if (winner) return
+      setSelected([r, c])
+      return
+    }
+
     // Colored → undo
     const newGrid: Grid = grid.map(row => row.map(cell => ({ ...cell })))
     newGrid[r][c].color = 'neutral'
     setGrid(newGrid)
     setSelected(null)
-    setMoveCount(m => Math.max(0, m - 1))
-  }, [grid, winner])
+    syncWinnerState(newGrid)
+  }, [grid, winner, syncWinnerState])
 
   const handleColorSelect = useCallback((color: Team) => {
     if (!selected) return
@@ -454,24 +507,22 @@ export default function App() {
     newGrid[r][c].color = color
     setGrid(newGrid)
     setSelected(null)
-    setMoveCount(m => m + 1)
     setLastPlaced(`${r},${c}`)
     setTimeout(() => setLastPlaced(null), 400)
-    const path = findWinPath(newGrid, color)
-    if (path) { setWinner(color); setWinPath(path); setScore(s => ({ ...s, [color]: s[color] + 1 })) }
-  }, [grid, selected])
+    syncWinnerState(newGrid)
+  }, [grid, selected, syncWinnerState])
 
   const handleCancel = useCallback(() => setSelected(null), [])
 
   const reset = useCallback(() => {
     setGrid(makeGrid()); setSelected(null); setWinner(null)
-    setMoveCount(0); setLastPlaced(null); setWinPath(new Set())
+    setLastPlaced(null); setWinPath(new Set())
   }, [])
 
-  const hexFill = (color: CellColor, isSel: boolean): string => {
-    if (color === 'yellow') return isSel ? '#fef08a' : YELLOW_MAIN
-    if (color === 'blue')   return isSel ? '#bae6fd' : BLUE_MAIN
-    return isSel ? '#e8e8f0' : '#ffffff'
+  const hexFill = (color: CellColor): string => {
+    if (color === 'yellow') return YELLOW_MAIN
+    if (color === 'blue')   return BLUE_MAIN
+    return '#ffffff'
   }
 
   const hexGlow = (color: CellColor): string => {
@@ -574,16 +625,27 @@ export default function App() {
             />
 
             <div
-              className="rounded-[28px] px-4 py-4 text-center"
+              className="rounded-[28px] px-4 py-4"
               style={{
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              <span className="block text-[11px] font-bold tracking-[0.25em] text-white/40">حركات</span>
-              <span className="mt-2 block text-4xl font-black text-white">
-                {moveCount}
-              </span>
+              <span className="block text-center text-[11px] font-bold tracking-[0.25em] text-white/40">حركات</span>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-[20px] px-3 py-3 text-center" style={{ background: 'rgba(250,204,21,0.12)' }}>
+                  <span className="block text-sm font-bold" style={{ color: YELLOW_MAIN }}>الأصفر</span>
+                  <span className="mt-1 block text-3xl font-black text-white">
+                    {moveCount.yellow}
+                  </span>
+                </div>
+                <div className="rounded-[20px] px-3 py-3 text-center" style={{ background: 'rgba(56,189,248,0.12)' }}>
+                  <span className="block text-sm font-bold" style={{ color: BLUE_MAIN }}>الأزرق</span>
+                  <span className="mt-1 block text-3xl font-black text-white">
+                    {moveCount.blue}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div
@@ -647,7 +709,7 @@ export default function App() {
               {grid.flat().map(cell => {
                 const x = cell.col * H_STEP + (cell.row % 2 === 1 ? HEX_W / 2 : 0) + 2
                 const y = cell.row * V_STEP + 2
-                const isSel      = selected?.[0] === cell.row && selected?.[1] === cell.col
+                const isSel = selected?.[0] === cell.row && selected?.[1] === cell.col
                 const justPlaced = lastPlaced === `${cell.row},${cell.col}`
                 const isWinCell  = winPath.has(`${cell.row},${cell.col}`)
                 const openBelow = cell.row < 2 || (isShortDesktop && cell.row < 3)
@@ -683,14 +745,14 @@ export default function App() {
                         right: 4,
                         bottom: 4,
                         clipPath: CLIP,
-                        background: isSel ? '#1e293b' : hexFill(cell.color, false),
+                        background: isSel ? '#162033' : hexFill(cell.color),
                         filter: isSel
-                          ? 'drop-shadow(0 0 14px rgba(255,255,255,1))'
+                          ? 'drop-shadow(0 0 18px rgba(255,255,255,0.95))'
                           : isWinCell
-                            ? winGlow
+                          ? winGlow
                           : hexGlow(cell.color),
                         transition: 'background 0.2s ease, filter 0.2s ease, transform 0.15s ease',
-                        transform: isSel ? 'scale(0.92)' : isWinCell ? 'scale(1.04)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
+                        transform: isSel ? 'scale(0.94)' : isWinCell ? 'scale(1.04)' : justPlaced ? 'scale(1.1)' : 'scale(1)',
                         animation: isWinCell ? 'winPulse 0.8s ease-in-out infinite' : 'none',
                       }}
                       onClick={() => handleCellClick(cell.row, cell.col)}
@@ -704,7 +766,7 @@ export default function App() {
                           color: isSel ? '#ffffff'
                             : cell.color === 'neutral' ? '#111111'
                             : cell.color === 'yellow' ? '#1a1200' : '#ffffff',
-                          textShadow: isSel ? 'none'
+                          textShadow: isSel ? '0 0 12px rgba(255,255,255,0.12)'
                             : cell.color !== 'neutral' ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
                           transition: 'color 0.2s',
                         }}
